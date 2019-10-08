@@ -15,10 +15,9 @@ pika_init();
 
 //load mailgun
 require_once('services/vendor/autoload.php');
-use Mailgun\Mailgun;
-$mg = new Mailgun("", "api.mailgun.net", "v2", true); // enter your api key here. Sign up for a key at mailgun.com 
-$domain = ""; // enter your domain here
-
+$email = new \SendGrid\Mail\Mail(); 
+$email->setFrom("noreply@resets.metatheria.solutions", "Pika");
+$email->setSubject("Lost Password");
 
 //token generation function
 $permitted_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -68,12 +67,17 @@ if (isset($_POST['username'])){
       $token_sql = "INSERT INTO pw_reset_tokens (username, token, token_expire) VALUES ('" . $safe_username . "', '" . $resetToken . "', '" . strtotime( '+3600 seconds' ) . "')"; // 3600 corresponds to the number of seconds in one hour. Change this for a different interval of time that the reset tokens should stay good for. 
       DB::query($token_sql) or trigger_error("SQL: " . $token_sql . " ERROR: " . DB::error());
       //email the user their reset link
-         $mgresult = $mg->sendMessage($domain, array(
-        'from'  => 'Pika Password <noreply@resets.metatheria.solutions>',
-        'to'    => '<' . $emailFromDB . '>',
-        'subject' => 'Lost Password',
-        'text'  => 'Please visit https://' . $_SERVER['SERVER_NAME'] . pl_settings_get('base_url') . "/resetpw.php?token="  . $resetToken . ' to reset your password'
-        ));  
+        $email->addTo($emailFromDB, "");
+        $email->addContent("text/html", 'Please visit https://' . $_SERVER['SERVER_NAME'] . pl_settings_get('base_url') . "/resetpw.php?token="  . $resetToken . ' to reset your password');
+        $sendgrid = new \SendGrid('API_KEY_GOES_HERE');
+	  try {
+    	    $response = $sendgrid->send($email);
+            //print $response->statusCode() . "\n";
+            //print_r($response->headers());
+            //print $response->body() . "\n";
+          } catch (Exception $e) {
+            echo 'Caught exception: '. $e->getMessage() ."\n";
+          }
         echo "Please check your email. The password reset link was sent to $emailFromDB";
   } 
   else {
